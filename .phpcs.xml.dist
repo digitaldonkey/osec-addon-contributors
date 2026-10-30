@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<ruleset name="Contributors Add-on for Open Source Event Calendar">
+	<description>WordPress Coding Standards for this plugin. Run: vendor/bin/phpcs (fix: vendor/bin/phpcbf).</description>
+
+	<!-- What to scan -->
+	<file>.</file>
+	<exclude-pattern>/vendor/</exclude-pattern>
+	<exclude-pattern>/node_modules/</exclude-pattern>
+
+	<!-- How to scan -->
+	<arg value="sp"/>
+	<arg name="basepath" value="./"/>
+	<arg name="colors"/>
+	<arg name="extensions" value="php"/>
+	<arg name="parallel" value="8"/>
+
+	<!-- PHP and WordPress versions this plugin supports (see the plugin header) -->
+	<config name="testVersion" value="8.4-"/>
+	<rule ref="PHPCompatibilityWP"/>
+	<config name="minimum_wp_version" value="7.1"/>
+
+	<rule ref="WordPress"/>
+
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<properties>
+			<property name="prefixes" type="array">
+				<element value="osec_addon_contributors"/>
+				<element value="Osec\Addon\Contributors"/>
+			</property>
+		</properties>
+		<!-- The test bootstrap and test classes follow the scaffold's naming. -->
+		<exclude-pattern>/tests/</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array" value="osec-addon-contributors"/>
+		</properties>
+	</rule>
+	<rule ref="WordPress.WhiteSpace.ControlStructureSpacing">
+		<properties>
+			<property name="blank_line_check" value="true"/>
+		</properties>
+	</rule>
+
+	<!-- Capabilities registered by Open Source Event Calendar and this plugin. -->
+	<rule ref="WordPress.WP.Capabilities">
+		<properties>
+			<property name="custom_capabilities" type="array">
+				<element value="edit_osec_events"/>
+				<element value="edit_others_osec_events"/>
+				<element value="publish_osec_events"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!-- src/ uses PSR-4 file names (Class.php) for the class loader, tests the scaffold's test-*.php. -->
+	<rule ref="WordPress.Files.FileName">
+		<exclude-pattern>/src/</exclude-pattern>
+		<exclude-pattern>/tests/</exclude-pattern>
+	</rule>
+	<!-- Short array syntax is used throughout. -->
+	<rule ref="Universal.Arrays.DisallowShortArraySyntax">
+		<severity>0</severity>
+	</rule>
+</ruleset>
