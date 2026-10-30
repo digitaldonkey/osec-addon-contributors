@@ -62,7 +62,8 @@ vendor/bin/phpunit
 1. `composer install` installs the development tools into `vendor/`: PHPUnit, the PHPUnit Polyfills
    (required by the WordPress test library) and the coding standards.
 2. `bin/install-wp-tests.sh <db-name> <db-user> <db-password> <db-host> <wp-version>` downloads
-   WordPress to `/tmp/wordpress/` and the test library to `/tmp/wordpress-tests-lib/`, writes the
+   WordPress to `/tmp/wordpress/` and the test library (from the GitHub mirror `WordPress/wordpress-develop`,
+   no Subversion needed) to `/tmp/wordpress-tests-lib/`, writes the
    database credentials into `wp-tests-config.php` and creates the database. Run it once; again after
    the temp folder was emptied (a DDEV restart does that). The values above are DDEV's.
 3. `vendor/bin/phpunit` runs every `tests/test-*.php`. `tests/bootstrap.php` loads the test library,
