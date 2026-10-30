@@ -10,10 +10,11 @@ namespace Osec\Addon\Contributors\Admin;
 use Osec\Addon\Contributors\Restriction;
 
 /**
- * Hides the "Personal Options" section (toolbar, colour scheme, shortcuts, language, ...) of the own
- * profile page (profile.php). WordPress prints it without a filter, so a stylesheet hides its heading
- * and table. The hidden fields are still sent with the form, stored values do not change.
- * Administrators editing a contributor (user-edit.php) still see the section.
+ * Hides the editing options of the "Personal Options" section (visual editor, syntax highlighting,
+ * colour scheme, keyboard shortcuts, toolbar, media library scrolling) on the own profile page
+ * (profile.php). The language choice stays. WordPress prints the rows without a filter, so a
+ * stylesheet hides them. The hidden fields are still sent with the form, stored values do not change.
+ * Administrators editing a contributor (user-edit.php) still see every row.
  */
 final class ProfilePage {
 
@@ -23,9 +24,16 @@ final class ProfilePage {
 	public const HANDLE = 'osec-addon-contributors-profile';
 
 	/**
-	 * Rows of the "Personal Options" table; WordPress prints some of them only for some users.
+	 * Rows of "Personal Options" that are hidden; WordPress prints some of them only for some users.
 	 */
-	private const ROWS = '.user-rich-editing-wrap, .user-syntax-highlighting-wrap, .user-admin-color-wrap, .user-comment-shortcuts-wrap, .user-admin-bar-front-wrap, .user-language-wrap';
+	public const HIDDEN_ROWS = [
+		'user-rich-editing-wrap',
+		'user-syntax-highlighting-wrap',
+		'user-admin-color-wrap',
+		'user-comment-shortcuts-wrap',
+		'user-admin-bar-front-wrap',
+		'user-infinite-scrolling-wrap',
+	];
 
 	/**
 	 * Registers the hook.
@@ -53,12 +61,12 @@ final class ProfilePage {
 	}
 
 	/**
-	 * The CSS: the table holding the personal option rows, and the heading right before it.
+	 * The CSS hiding the rows.
 	 *
 	 * @return string
 	 */
 	public static function css(): string {
-		$table = '#your-profile .form-table:has(' . self::ROWS . ')';
-		return '#your-profile h2:has(+ .form-table :is(' . self::ROWS . ")), {$table} { display: none; }";
+		$selectors = array_map( static fn( string $row ): string => '#your-profile .' . $row, self::HIDDEN_ROWS );
+		return implode( ', ', $selectors ) . ' { display: none; }';
 	}
 }

@@ -135,7 +135,7 @@ class Test_Admin extends Osec_Addon_Contributors_TestCase {
 	}
 
 	/**
-	 * The "Personal Options" CSS is added on the own profile page of contributors only.
+	 * The "Personal Options" CSS is added on the own profile page of contributors only, and keeps the language.
 	 */
 	public function test_profile_hides_personal_options() {
 		wp_set_current_user( $this->user( 'editor' ) );
@@ -148,6 +148,8 @@ class Test_Admin extends Osec_Addon_Contributors_TestCase {
 
 		ProfilePage::hide_personal_options( 'profile.php' );
 		$this->assertTrue( wp_style_is( ProfilePage::HANDLE, 'enqueued' ) );
-		$this->assertStringContainsString( '.user-language-wrap', implode( '', wp_styles()->get_data( ProfilePage::HANDLE, 'after' ) ) );
+		$css = implode( '', wp_styles()->get_data( ProfilePage::HANDLE, 'after' ) );
+		$this->assertStringContainsString( '.user-admin-color-wrap', $css );
+		$this->assertStringNotContainsString( 'user-language-wrap', $css );
 	}
 }

@@ -28,7 +28,7 @@ src/
 │   ├── PageRedirect.php      after login, Dashboard, Media library, upload page → event list
 │   ├── Uploads.php           image types only
 │   ├── EditorLayout.php      default box order / hidden boxes (defaults, nothing stored)
-│   └── ProfilePage.php       own profile: "Personal Options" hidden (CSS)
+│   └── ProfilePage.php       own profile: "Personal Options" except language hidden (CSS)
 └── PrivateUploads/           images of unpublished events
     ├── Storage.php           private folder, which attachments are private, deleting their files
     ├── StorageCheck.php      fail closed: test download, admin notice, Site Health
