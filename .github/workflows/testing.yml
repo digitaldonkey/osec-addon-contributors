@@ -42,6 +42,11 @@ jobs:
           curl -sSL -o /tmp/osec.zip https://downloads.wordpress.org/plugin/open-source-event-calendar.latest-stable.zip
           unzip -q /tmp/osec.zip -d /tmp/osec
 
+      # bin/install-wp-tests.sh fetches the WordPress test library with Subversion,
+      # which current Ubuntu runner images no longer include.
+      - name: Install Subversion
+        run: sudo apt-get update && sudo apt-get install -y subversion
+
       - name: Setup tests
         run: bash bin/install-wp-tests.sh wordpress_tests root root 127.0.0.1 latest true
 
