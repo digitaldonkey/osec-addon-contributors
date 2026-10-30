@@ -28,8 +28,8 @@ src/
 │   ├── PageRedirect.php      after login, Dashboard, Media library, upload page → event list
 │   ├── Uploads.php           image types only
 │   ├── EditorLayout.php      default box order / hidden boxes (defaults, nothing stored)
-│   ├── MediaDialog.php       media dialog without gallery and playlists
-│   └── ProfilePage.php       own profile: "Personal Options" except language hidden (CSS)
+│   ├── MediaDialog.php       media dialog without gallery, playlists, insert from URL
+│   └── ProfilePage.php       own profile: "Personal Options" except language hidden (CSS), no application passwords
 └── PrivateUploads/           images of unpublished events
     ├── Storage.php           private folder, which attachments are private, deleting their files
     ├── StorageCheck.php      fail closed: test download, admin notice, Site Health

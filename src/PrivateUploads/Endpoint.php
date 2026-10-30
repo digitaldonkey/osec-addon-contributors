@@ -7,6 +7,7 @@
 
 namespace Osec\Addon\Contributors\PrivateUploads;
 
+use Osec\Addon\Contributors\Admin\Uploads;
 use WP;
 use WP_Post;
 
@@ -70,12 +71,13 @@ final class Endpoint {
 		if ( ! isset( $wp->query_vars[ self::QUERY_VAR ] ) ) {
 			return;
 		}
-		$result = self::resolve( (string) $wp->query_vars[ self::QUERY_VAR ] );
+		$result = self::resolve_query_value( $wp->query_vars[ self::QUERY_VAR ] );
 
 		nocache_headers();
 		header( 'X-Content-Type-Options: nosniff' );
 		if ( 301 === $result['status'] ) {
-			wp_safe_redirect( $result['location'], 301 );
+			// The address is the attachment's own URL from WordPress, possibly on a media host (offload plugins).
+			wp_redirect( esc_url_raw( $result['location'] ), 301 ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect
 			exit;
 		}
 		if ( 200 !== $result['status'] ) {
@@ -89,6 +91,17 @@ final class Endpoint {
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile -- streams the image without loading it into memory.
 		readfile( $result['path'] );
 		exit;
+	}
+
+	/**
+	 * Decides what a request gets, for any query value (WordPress passes arrays through as well).
+	 *
+	 * @param mixed $value Query value.
+	 *
+	 * @return array{status:int, path?:string, type?:string, location?:string}
+	 */
+	public static function resolve_query_value( mixed $value ): array {
+		return is_string( $value ) ? self::resolve( $value ) : [ 'status' => 404 ];
 	}
 
 	/**
@@ -122,7 +135,8 @@ final class Endpoint {
 		}
 
 		$path = dirname( get_attached_file( $id, true ) ) . '/' . $name;
-		$type = wp_check_filetype( $name )['type'];
+		// The plugin's own image list, not the viewer's allowed upload types (which may include SVG).
+		$type = wp_check_filetype( $name, Uploads::IMAGE_TYPES )['type'];
 		if ( ! Storage::contains( $path ) || ! is_file( $path ) || ! is_string( $type ) || ! str_starts_with( $type, 'image/' ) ) {
 			return [ 'status' => 404 ];
 		}

@@ -172,4 +172,12 @@ class Test_Admin extends Osec_Addon_Contributors_TestCase {
 			$this->assertStringContainsString( '#' . $entry, $css );
 		}
 	}
+
+	/**
+	 * Contributors get no application passwords; for others the site's setting stays.
+	 */
+	public function test_no_application_passwords_for_contributors() {
+		$this->assertFalse( apply_filters( 'wp_is_application_passwords_available_for_user', true, get_userdata( $this->user( Roles::PUBLISHER ) ) ) );
+		$this->assertTrue( apply_filters( 'wp_is_application_passwords_available_for_user', true, get_userdata( $this->user( 'editor' ) ) ) );
+	}
 }

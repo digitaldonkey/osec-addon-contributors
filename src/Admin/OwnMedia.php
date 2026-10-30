@@ -105,7 +105,7 @@ final class OwnMedia {
 	}
 
 	/**
-	 * Whether a published post uses the attachment: as its parent, or as the featured image of one.
+	 * Whether a published post uses the attachment: as its parent, as its featured image, or in its text.
 	 *
 	 * @param WP_Post $attachment The attachment.
 	 *
@@ -131,6 +131,34 @@ final class OwnMedia {
 				],
 			]
 		);
-		return [] !== $featured_on;
+		if ( [] !== $featured_on ) {
+			return true;
+		}
+		return self::is_in_published_text( $attachment->ID );
+	}
+
+	/**
+	 * Whether the text of a published post contains the image (`wp-image-<ID>`, as the editors write it).
+	 *
+	 * @param int $attachment_id Attachment ID.
+	 *
+	 * @return bool
+	 */
+	private static function is_in_published_text( int $attachment_id ): bool {
+		global $wpdb;
+		$needle = 'wp-image-' . $attachment_id;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- only on a delete check; LIKE narrows, the pattern below decides.
+		$texts = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT post_content FROM {$wpdb->posts} WHERE post_status = 'publish' AND post_content LIKE %s",
+				'%' . $wpdb->esc_like( $needle ) . '%'
+			)
+		);
+		foreach ( $texts as $text ) {
+			if ( preg_match( '/' . preg_quote( $needle, '/' ) . '(?!\d)/', $text ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 }

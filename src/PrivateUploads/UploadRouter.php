@@ -27,6 +27,8 @@ final class UploadRouter {
 		add_filter( 'wp_handle_upload_prefilter', [ self::class, 'route' ] );
 		add_filter( 'wp_handle_sideload_prefilter', [ self::class, 'route' ] );
 		add_filter( 'wp_handle_upload', [ self::class, 'done' ] );
+		add_filter( 'wp_handle_upload_overrides', [ self::class, 'reset_on_error' ] );
+		add_filter( 'wp_handle_sideload_overrides', [ self::class, 'reset_on_error' ] );
 		add_action( 'add_attachment', [ self::class, 'mark' ] );
 	}
 
@@ -45,7 +47,7 @@ final class UploadRouter {
 		if ( $parent && 'publish' === get_post_status( $parent ) ) {
 			return $file;
 		}
-		if ( ! StorageCheck::is_safe() || ! Storage::ensure() ) {
+		if ( ! Storage::is_usable() || ! StorageCheck::is_safe() ) {
 			$file['error'] = __( 'Image uploads are paused until an administrator secures the storage for private images.', 'osec-addon-contributors' );
 			return $file;
 		}
@@ -66,6 +68,30 @@ final class UploadRouter {
 		// Becomes the attachment's GUID only, every displayed URL comes from UrlFilter.
 		$uploads['url'] = Endpoint::url( 0, '' );
 		return $uploads;
+	}
+
+	/**
+	 * When the upload fails after routing (type check, size, ...): back to the normal uploads folder too.
+	 *
+	 * WordPress applies these overrides right after the prefilter and calls their error handler on every
+	 * failure, so the handler is wrapped.
+	 *
+	 * @param array|false $overrides Upload overrides.
+	 *
+	 * @return array|false
+	 */
+	public static function reset_on_error( $overrides ) {
+		if ( ! has_filter( 'upload_dir', [ self::class, 'private_dir' ] ) ) {
+			return $overrides;
+		}
+		$overrides = is_array( $overrides ) ? $overrides : [];
+		$handler   = $overrides['upload_error_handler'] ?? 'wp_handle_upload_error';
+
+		$overrides['upload_error_handler'] = static function ( &$file, $message ) use ( $handler ) {
+			remove_filter( 'upload_dir', [ self::class, 'private_dir' ] );
+			return call_user_func_array( $handler, [ &$file, $message ] );
+		};
+		return $overrides;
 	}
 
 	/**

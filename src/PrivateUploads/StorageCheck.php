@@ -11,10 +11,12 @@ namespace Osec\Addon\Contributors\PrivateUploads;
  * Checks that nobody can download private files directly. Fails closed: while the check fails or
  * cannot run, restricted users cannot upload, and administrators get a notice and a Site Health result.
  *
- * Outside the WordPress folder the files are safe by location. Inside it (fallback in uploads),
- * a test file is written and fetched without login: when the web server delivers it, the folder is
- * public. Apache is kept out by the .htaccess file; nginx needs the rule shown in the notice.
- * The result is cached (safe: one day, unsafe: five minutes).
+ * Outside every web folder (Storage::web_roots()) the files are safe by location. Inside one (fallback
+ * in uploads), a test file is written and fetched without login: when the web server delivers it, the
+ * folder is public; when no URL for the folder is known or the request fails, it counts as public too.
+ * Apache is kept out by the .htaccess file; nginx needs the rule shown in the notice.
+ * The result is cached (safe: one day, unsafe: five minutes). A folder that cannot be written is reported
+ * the same way.
  */
 final class StorageCheck {
 
@@ -67,9 +69,13 @@ final class StorageCheck {
 		if ( ! $fs->put_contents( $path, $token, Storage::FILE_MODE ) ) {
 			return false;
 		}
-		$relative = substr( $path, strlen( trailingslashit( wp_normalize_path( ABSPATH ) ) ) );
+		$url = self::url_for( $path );
+		if ( null === $url ) {
+			$fs->delete( $path );
+			return false;
+		}
 		$response = wp_remote_get(
-			site_url( $relative ),
+			$url,
 			[
 				'timeout'     => 10,
 				'redirection' => 0,
@@ -86,22 +92,85 @@ final class StorageCheck {
 	}
 
 	/**
+	 * The URL a web server would deliver a path under, or null when the path is in no known web folder.
+	 *
+	 * @param string $path Absolute path.
+	 *
+	 * @return string|null
+	 */
+	public static function url_for( string $path ): ?string {
+		$path    = wp_normalize_path( $path );
+		$uploads = wp_upload_dir( null, false );
+		$bases   = [
+			trailingslashit( wp_normalize_path( $uploads['basedir'] ) ) => trailingslashit( $uploads['baseurl'] ),
+			trailingslashit( wp_normalize_path( WP_CONTENT_DIR ) )      => trailingslashit( content_url() ),
+			trailingslashit( wp_normalize_path( ABSPATH ) )             => trailingslashit( site_url() ),
+		];
+		if ( ! empty( $_SERVER['DOCUMENT_ROOT'] ) ) {
+			$home = wp_parse_url( home_url() );
+			$bases[ trailingslashit( wp_normalize_path( sanitize_text_field( wp_unslash( $_SERVER['DOCUMENT_ROOT'] ) ) ) ) ] =
+				$home['scheme'] . '://' . $home['host'] . ( isset( $home['port'] ) ? ':' . $home['port'] : '' ) . '/';
+		}
+		foreach ( $bases as $dir => $url ) {
+			if ( str_starts_with( $path, $dir ) ) {
+				return $url . substr( $path, strlen( $dir ) );
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * What is wrong with the private folder: "not_writable", "public" or "" (nothing).
+	 *
+	 * @return string
+	 */
+	public static function problem(): string {
+		if ( ! Storage::is_usable() ) {
+			return 'not_writable';
+		}
+		return self::is_safe() ? '' : 'public';
+	}
+
+	/**
 	 * The nginx rule that keeps the fallback folder private.
 	 *
 	 * @return string
 	 */
 	public static function nginx_rule(): string {
-		$location = '/' . substr( Storage::root(), strlen( trailingslashit( wp_normalize_path( ABSPATH ) ) ) ) . '/';
-		return "location ^~ {$location} {\n    deny all;\n}";
+		$url  = self::url_for( Storage::root() );
+		$path = null === $url ? null : wp_parse_url( $url, PHP_URL_PATH );
+		if ( ! is_string( $path ) ) {
+			return '# ' . Storage::root() . ': deny all access to this folder in the web server configuration.';
+		}
+		return 'location ^~ ' . trailingslashit( $path ) . " {\n    deny all;\n}";
 	}
 
 	/**
-	 * Admin notice while the folder is not safe.
+	 * Admin notice while the folder cannot be written or is public.
 	 *
 	 * @return void
 	 */
 	public static function notice(): void {
-		if ( ! current_user_can( 'manage_options' ) || self::is_safe() ) {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		$problem = self::problem();
+		if ( 'not_writable' === $problem ) {
+			wp_admin_notice(
+				sprintf(
+					/* translators: %s: folder path */
+					esc_html__( 'Contributors Add-on: the folder for private images, %s, cannot be created or written by the web server. Image uploads of event contributors are paused. Make it writable, or define OSEC_ADDON_CONTRIBUTORS_PRIVATE_DIR as a writable folder outside the web root.', 'osec-addon-contributors' ),
+					'<code>' . esc_html( Storage::root() ) . '</code>'
+				),
+				[
+					'type'               => 'error',
+					'paragraph_wrap'     => true,
+					'additional_classes' => [ 'osec-addon-contributors-storage' ],
+				]
+			);
+			return;
+		}
+		if ( '' === $problem ) {
 			return;
 		}
 		wp_admin_notice(
@@ -141,11 +210,13 @@ final class StorageCheck {
 	 */
 	public static function site_health_result(): array {
 		delete_transient( self::TRANSIENT );
-		$safe = self::is_safe();
+		$safe = '' === self::problem();
 		return [
-			'label'       => $safe
-				? __( 'Private event images cannot be downloaded directly', 'osec-addon-contributors' )
-				: __( 'Private event images can be downloaded by anyone', 'osec-addon-contributors' ),
+			'label'       => match ( self::problem() ) {
+				''             => __( 'Private event images cannot be downloaded directly', 'osec-addon-contributors' ),
+				'not_writable' => __( 'The folder for private event images cannot be written', 'osec-addon-contributors' ),
+				default        => __( 'Private event images can be downloaded by anyone', 'osec-addon-contributors' ),
+			},
 			'status'      => $safe ? 'good' : 'critical',
 			'badge'       => [
 				'label' => __( 'Security', 'osec-addon-contributors' ),

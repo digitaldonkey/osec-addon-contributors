@@ -11,10 +11,11 @@ use Osec\Addon\Contributors\Plugin;
 use WP_Post;
 
 /**
- * On the first publication of an event, every private image of the event's author used by it moves to
- * the public uploads folder: the featured image, images attached to the event and images placed in the
- * event text (`wp-image-<ID>`). All sizes move, the event text gets the public URLs, and the endpoint
- * redirects old links. Unpublishing does not make images private again.
+ * Whenever a published event is saved (first publication included, scheduled ones too) or gets a featured
+ * image, every private image of the event's author used by it moves to the public uploads folder: the
+ * featured image, images attached to the event and images placed in the event text (`wp-image-<ID>`).
+ * All sizes move, the event text gets the public URLs, and the endpoint redirects old links. Unpublishing
+ * does not make images private again. An image whose file is missing stays private.
  *
  * Target: uploads/<year>/<month>/ (event site's timezone); when a file name is already taken there,
  * uploads/<year>/<month>/<attachment ID>/, so no file is renamed and every size keeps its name.
@@ -27,20 +28,51 @@ final class Publisher {
 	 * @return void
 	 */
 	public static function register(): void {
-		add_action( 'transition_post_status', [ self::class, 'on_transition' ], 10, 3 );
+		add_action( 'wp_after_insert_post', [ self::class, 'after_save' ], 10, 2 );
+		// The classic editor sets the featured image right away, before the event is saved.
+		add_action( 'added_post_meta', [ self::class, 'featured_image_set' ], 10, 3 );
+		add_action( 'updated_post_meta', [ self::class, 'featured_image_set' ], 10, 3 );
 	}
 
 	/**
-	 * Runs when an event becomes published.
+	 * After an event was saved, with its meta and terms.
 	 *
-	 * @param string  $new_status New status.
-	 * @param string  $old_status Old status.
-	 * @param WP_Post $post       The post.
+	 * @param int     $post_id Post ID.
+	 * @param WP_Post $post    The post.
 	 *
 	 * @return void
 	 */
-	public static function on_transition( string $new_status, string $old_status, WP_Post $post ): void {
-		if ( 'publish' !== $new_status || 'publish' === $old_status || Plugin::post_type() !== $post->post_type ) {
+	public static function after_save( int $post_id, WP_Post $post ): void {
+		unset( $post_id );
+		self::publish_images( $post );
+	}
+
+	/**
+	 * After a featured image was set on a post.
+	 *
+	 * @param int    $meta_id   Meta ID.
+	 * @param int    $object_id Post ID.
+	 * @param string $meta_key  Meta key.
+	 *
+	 * @return void
+	 */
+	public static function featured_image_set( $meta_id, $object_id, $meta_key ): void {
+		unset( $meta_id );
+		$post = '_thumbnail_id' === $meta_key ? get_post( (int) $object_id ) : null;
+		if ( $post instanceof WP_Post ) {
+			self::publish_images( $post );
+		}
+	}
+
+	/**
+	 * Makes the private images of a published event public.
+	 *
+	 * @param WP_Post $post The event.
+	 *
+	 * @return void
+	 */
+	public static function publish_images( WP_Post $post ): void {
+		if ( 'publish' !== $post->post_status || Plugin::post_type() !== $post->post_type ) {
 			return;
 		}
 		$replace = [];
@@ -84,7 +116,12 @@ final class Publisher {
 	 * @return array<string, string> Old endpoint URL => new public URL, per file; empty on failure.
 	 */
 	public static function make_public( int $attachment_id ): array {
-		$source = dirname( get_attached_file( $attachment_id, true ) );
+		$main_file = get_attached_file( $attachment_id, true );
+		if ( ! is_string( $main_file ) || ! file_exists( $main_file ) ) {
+			self::log_failure( $attachment_id, 'its file is missing' );
+			return [];
+		}
+		$source = dirname( $main_file );
 		$names  = array_filter( Storage::file_names( $attachment_id ), static fn( $name ) => file_exists( $source . '/' . $name ) );
 		$target = self::target_dir( $attachment_id, $names );
 		if ( null === $target ) {
@@ -105,7 +142,7 @@ final class Publisher {
 			$moved[] = $name;
 		}
 
-		$main = wp_basename( get_attached_file( $attachment_id, true ) );
+		$main = wp_basename( $main_file );
 		$meta = wp_get_attachment_metadata( $attachment_id );
 		update_attached_file( $attachment_id, $target['path'] . '/' . $main );
 		if ( is_array( $meta ) ) {

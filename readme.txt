@@ -26,10 +26,10 @@ Open Source Event Calendar brings the role **Event Contributor**: it drafts even
 **A tidy admin for contributors**
 
 * The event list shows their own events only, with matching counts.
-* The media dialog shows their own images only, without "Create gallery" and the playlists. They can edit their images (title, alt text) and delete them while no published event uses them.
+* The media dialog shows their own images only, without "Create gallery", the playlists and "Insert from URL". They can edit their images (title, alt text) and delete them while no published event uses them.
 * After login they land on "My events". Dashboard and Media are hidden from the menu; the Dashboard, the media library and the upload page lead to "My events", and "+ New" in the admin bar creates an event. Images are uploaded and chosen inside the event editor.
 * A clear default layout of the event editor (until they arrange it themselves).
-* A shorter profile page: of the "Personal Options" only the language choice stays (editor, colour scheme, shortcuts and toolbar options are hidden).
+* A shorter profile page: of the "Personal Options" only the language choice stays (editor, colour scheme, shortcuts and toolbar options are hidden), and no application passwords.
 
 **Private images until the event is published**
 
@@ -47,7 +47,7 @@ Who counts as a contributor: users who can edit events but not other people's ev
 
 **Where private images are stored**
 
-By default in the folder `osec_private_files` one level above the WordPress folder, where no web server delivers files. When that folder cannot be created, the plugin uses `wp-content/uploads/osec_private_files/`:
+By default in the folder `osec_private_files` one level above the web folder (the WordPress folder, or the web server's document root when WordPress lives in a subfolder of it), where no web server delivers files. When that folder cannot be created, the plugin uses `wp-content/uploads/osec_private_files/`:
 
 * Apache: protected automatically by an .htaccess file.
 * nginx: add the rule shown in the admin notice and in Site Health, for example:
@@ -69,6 +69,12 @@ The URL does not help: every request is checked against the logged-in user. Visi
 = What happens when I deactivate or delete the plugin? =
 
 Deactivating removes the upload right of both contributor roles, the Event Publisher role stays. Deleting turns Event Publishers into Event Contributors and removes the role. Private images stay where they are, without the plugin nobody can open them. To keep them, publish their events before you delete the plugin, or move the files yourself.
+
+= Known limits =
+
+* Multisite: the Event Publisher role is created on the site where the plugin is activated. Network activation does not create it on the other sites.
+* Attachment pages: WordPress shows no attachment pages by default (since 6.4). If a site switches them back on, the page of a private image that belongs to no event shows its title and description to anyone; the image itself stays protected.
+* Images added by hand as HTML from other websites (the editor's "Text" tab) are not stopped.
 
 = I used an earlier draft of this plugin (folder private_drafts) =
 

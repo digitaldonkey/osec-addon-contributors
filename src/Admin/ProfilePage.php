@@ -8,6 +8,7 @@
 namespace Osec\Addon\Contributors\Admin;
 
 use Osec\Addon\Contributors\Restriction;
+use WP_User;
 
 /**
  * Hides the editing options of the "Personal Options" section (visual editor, syntax highlighting,
@@ -15,6 +16,9 @@ use Osec\Addon\Contributors\Restriction;
  * (profile.php). The language choice stays. WordPress prints the rows without a filter, so a
  * stylesheet hides them. The hidden fields are still sent with the form, stored values do not change.
  * Administrators editing a contributor (user-edit.php) still see every row.
+ *
+ * Application passwords are switched off for restricted users with WordPress's own filter: the section
+ * disappears from the profile, and no application password can be created or used for them.
  */
 final class ProfilePage {
 
@@ -42,6 +46,19 @@ final class ProfilePage {
 	 */
 	public static function register(): void {
 		add_action( 'admin_enqueue_scripts', [ self::class, 'hide_personal_options' ] );
+		add_filter( 'wp_is_application_passwords_available_for_user', [ self::class, 'application_passwords' ], 10, 2 );
+	}
+
+	/**
+	 * No application passwords for restricted users.
+	 *
+	 * @param bool    $available Whether application passwords are available for the user.
+	 * @param WP_User $user      The user.
+	 *
+	 * @return bool
+	 */
+	public static function application_passwords( $available, $user ) {
+		return $user instanceof WP_User && Restriction::applies( $user ) ? false : $available;
 	}
 
 	/**

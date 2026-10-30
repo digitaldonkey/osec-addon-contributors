@@ -16,9 +16,10 @@ use WP_Filesystem_Direct;
  * 1. the constant OSEC_ADDON_CONTRIBUTORS_PRIVATE_DIR (wp-config.php), an absolute path;
  * 2. the folder chosen on first use, stored in the option `osec_addon_contributors_private_root`, so it
  *    never changes under existing files;
- * 3. on first use: `osec_private_files/` one level above the WordPress folder when that can be written
- *    (no web server serves it), otherwise `wp-content/uploads/osec_private_files/` protected by an
- *    .htaccess file (Apache) and a server rule the admin adds (nginx), see StorageCheck.
+ * 3. on first use: `osec_private_files/` one level above the topmost web folder (WordPress folder, the
+ *    folder holding wp-content, the web server's document root) when that can be written, where no web
+ *    server serves it; otherwise `wp-content/uploads/osec_private_files/`, protected by an .htaccess file
+ *    (Apache) and a server rule the admin adds (nginx), see StorageCheck.
  *
  * On multisite every site gets a subfolder `site-<id>`.
  *
@@ -77,12 +78,55 @@ final class Storage {
 	}
 
 	/**
-	 * Whether the private folder lies inside the WordPress folder, where a web server could serve it.
+	 * Folders a web server may serve: the WordPress folder, the folder holding wp-content (they differ
+	 * when WordPress lives in its own subfolder) and the document root of the current request.
+	 *
+	 * @return string[] Normalized paths with trailing slash, as given and resolved.
+	 */
+	public static function web_roots(): array {
+		$roots = [ ABSPATH, dirname( WP_CONTENT_DIR ) ];
+		if ( ! empty( $_SERVER['DOCUMENT_ROOT'] ) ) {
+			$roots[] = sanitize_text_field( wp_unslash( $_SERVER['DOCUMENT_ROOT'] ) );
+		}
+		$all = [];
+		foreach ( $roots as $root ) {
+			$all[] = trailingslashit( wp_normalize_path( $root ) );
+			$real  = realpath( $root );
+			if ( false !== $real ) {
+				$all[] = trailingslashit( wp_normalize_path( $real ) );
+			}
+		}
+		return array_values( array_unique( $all ) );
+	}
+
+	/**
+	 * Whether a path lies inside a folder a web server may serve.
+	 *
+	 * @param string|null $path Absolute path, default the private folder.
 	 *
 	 * @return bool
 	 */
-	public static function in_web_root(): bool {
-		return str_starts_with( self::root() . '/', trailingslashit( wp_normalize_path( ABSPATH ) ) );
+	public static function in_web_root( ?string $path = null ): bool {
+		$path  = trailingslashit( wp_normalize_path( $path ?? self::root() ) );
+		$real  = realpath( $path );
+		$paths = false === $real ? [ $path ] : [ $path, trailingslashit( wp_normalize_path( $real ) ) ];
+		foreach ( self::web_roots() as $root ) {
+			foreach ( $paths as $candidate ) {
+				if ( str_starts_with( $candidate, $root ) ) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Whether the private folder exists (or was created) and can be written.
+	 *
+	 * @return bool
+	 */
+	public static function is_usable(): bool {
+		return self::ensure() && wp_is_writable( self::root() );
 	}
 
 	/**
@@ -92,7 +136,7 @@ final class Storage {
 	 */
 	public static function ensure(): bool {
 		$root = self::root();
-		if ( ! wp_mkdir_p( $root ) ) {
+		if ( ! is_dir( $root ) && ( file_exists( $root ) || ! wp_mkdir_p( $root ) ) ) {
 			return false;
 		}
 		if ( self::in_web_root() ) {
@@ -137,12 +181,17 @@ final class Storage {
 		}
 		if ( false === $real ) {
 			$real = wp_normalize_path( $path );
+			// Not resolvable (does not exist yet): ".." could lead anywhere.
+			if ( preg_match( '#(^|/)\.\.(/|$)#', $real ) ) {
+				return false;
+			}
 		}
 		return str_starts_with( wp_normalize_path( $real ), trailingslashit( wp_normalize_path( $root ) ) );
 	}
 
 	/**
-	 * File names of an attachment: the main file, every size and the original before scaling.
+	 * File names of an attachment: the main file, every size, the original before scaling and the
+	 * backup copies WordPress keeps of an edited image.
 	 *
 	 * @param int $attachment_id Attachment ID.
 	 *
@@ -158,6 +207,12 @@ final class Storage {
 			}
 			if ( ! empty( $meta['original_image'] ) ) {
 				$names[] = wp_basename( $meta['original_image'] );
+			}
+		}
+		$backups = get_post_meta( $attachment_id, '_wp_attachment_backup_sizes', true );
+		foreach ( is_array( $backups ) ? $backups : [] as $backup ) {
+			if ( ! empty( $backup['file'] ) ) {
+				$names[] = wp_basename( $backup['file'] );
 			}
 		}
 		return array_values( array_unique( $names ) );
@@ -195,13 +250,17 @@ final class Storage {
 	}
 
 	/**
-	 * Chooses the folder on first use: beside the WordPress folder when writable, else in uploads.
+	 * Chooses the folder on first use: beside the topmost web folder when writable and not served,
+	 * else in uploads.
 	 *
 	 * @return string
 	 */
 	private static function choose(): string {
-		$outside = dirname( untrailingslashit( wp_normalize_path( ABSPATH ) ) ) . '/' . self::DIR_NAME;
-		if ( is_dir( $outside ) ? wp_is_writable( $outside ) : wp_is_writable( dirname( $outside ) ) ) {
+		$roots = self::web_roots();
+		usort( $roots, static fn( string $a, string $b ): int => strlen( $a ) <=> strlen( $b ) );
+		$outside = dirname( untrailingslashit( $roots[0] ) ) . '/' . self::DIR_NAME;
+		$usable  = is_dir( $outside ) ? wp_is_writable( $outside ) : wp_is_writable( dirname( $outside ) );
+		if ( $usable && ! self::in_web_root( $outside ) ) {
 			return $outside;
 		}
 		return wp_normalize_path( wp_upload_dir( null, false )['basedir'] ) . '/' . self::DIR_NAME;

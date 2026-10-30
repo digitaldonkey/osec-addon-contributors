@@ -10,20 +10,22 @@ namespace Osec\Addon\Contributors\Admin;
 use Osec\Addon\Contributors\Restriction;
 
 /**
- * Removes "Create gallery", "Create audio playlist" and "Create video playlist" from the media dialog
- * of the event editor. Contributors add single images to an event.
+ * Removes "Create gallery", "Create audio playlist", "Create video playlist" and "Insert from URL" from
+ * the media dialog of the event editor. Contributors add single uploaded images to an event; images
+ * from other websites would bypass the private storage of unpublished events.
  *
  * The playlists have core filters, which make core mark their entries `hidden`. In WordPress 7.1 that
  * mark has no effect: `.media-menu .media-menu-item { display: block }` comes after
  * `.media-frame .hidden { display: none }` in core's CSS with the same specificity. "Create gallery" has no
- * filter at all. So the stylesheet of the media dialog gets a rule hiding all three menu entries.
+ * filter at all, nor has "Insert from URL". So the stylesheet of the media dialog gets a rule hiding
+ * these menu entries.
  */
 final class MediaDialog {
 
 	/**
 	 * Menu entries of the media dialog hidden for restricted users.
 	 */
-	public const HIDDEN_ENTRIES = [ 'menu-item-gallery', 'menu-item-playlist', 'menu-item-video-playlist' ];
+	public const HIDDEN_ENTRIES = [ 'menu-item-gallery', 'menu-item-playlist', 'menu-item-video-playlist', 'menu-item-embed' ];
 
 	/**
 	 * Registers the hooks.
@@ -48,7 +50,7 @@ final class MediaDialog {
 	}
 
 	/**
-	 * Hides gallery and playlist entries for restricted users whenever the media dialog is loaded.
+	 * Hides the gallery, playlist and URL entries for restricted users whenever the media dialog is loaded.
 	 *
 	 * @return void
 	 */
