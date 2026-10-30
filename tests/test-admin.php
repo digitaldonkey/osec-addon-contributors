@@ -7,6 +7,7 @@
 
 use Osec\Addon\Contributors\Admin\AdminMenu;
 use Osec\Addon\Contributors\Admin\EditorLayout;
+use Osec\Addon\Contributors\Admin\MediaDialog;
 use Osec\Addon\Contributors\Admin\PageRedirect;
 use Osec\Addon\Contributors\Admin\ProfilePage;
 use Osec\Addon\Contributors\Admin\Roles;
@@ -151,5 +152,24 @@ class Test_Admin extends Osec_Addon_Contributors_TestCase {
 		$css = implode( '', wp_styles()->get_data( ProfilePage::HANDLE, 'after' ) );
 		$this->assertStringContainsString( '.user-admin-color-wrap', $css );
 		$this->assertStringNotContainsString( 'user-language-wrap', $css );
+	}
+
+	/**
+	 * The media dialog offers contributors no gallery and no playlists; editors keep them.
+	 */
+	public function test_media_dialog_without_gallery_and_playlists() {
+		wp_set_current_user( $this->user( 'editor' ) );
+		$this->assertTrue( apply_filters( 'media_library_show_audio_playlist', true ) );
+		MediaDialog::hide_gallery();
+		$this->assertStringNotContainsString( 'menu-item-gallery', implode( '', (array) wp_styles()->get_data( 'media-views', 'after' ) ) );
+
+		wp_set_current_user( $this->user( Roles::ASSISTANT ) );
+		$this->assertFalse( apply_filters( 'media_library_show_audio_playlist', true ) );
+		$this->assertFalse( apply_filters( 'media_library_show_video_playlist', true ) );
+		MediaDialog::hide_gallery();
+		$css = implode( '', (array) wp_styles()->get_data( 'media-views', 'after' ) );
+		foreach ( MediaDialog::HIDDEN_ENTRIES as $entry ) {
+			$this->assertStringContainsString( '#' . $entry, $css );
+		}
 	}
 }

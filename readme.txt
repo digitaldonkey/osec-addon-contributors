@@ -26,7 +26,7 @@ Open Source Event Calendar brings the role **Event Contributor**: it drafts even
 **A tidy admin for contributors**
 
 * The event list shows their own events only, with matching counts.
-* The media dialog shows their own images only. They can edit their images (title, alt text) and delete them while no published event uses them.
+* The media dialog shows their own images only, without "Create gallery" and the playlists. They can edit their images (title, alt text) and delete them while no published event uses them.
 * After login they land on "My events". Dashboard and Media are hidden from the menu; the Dashboard, the media library and the upload page lead to "My events", and "+ New" in the admin bar creates an event. Images are uploaded and chosen inside the event editor.
 * A clear default layout of the event editor (until they arrange it themselves).
 * A shorter profile page: of the "Personal Options" only the language choice stays (editor, colour scheme, shortcuts and toolbar options are hidden).

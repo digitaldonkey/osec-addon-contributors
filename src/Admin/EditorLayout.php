@@ -24,7 +24,7 @@ final class EditorLayout {
 	 */
 	public const ORDER = [
 		'side'     => 'submitdiv,osec_events_categoriesdiv,tagsdiv-osec_events_tags',
-		'normal'   => 'osec_event_meta_box_location,osec_event_meta_box_tickets,osec_eventmeta_box_organizer',
+		'normal'   => 'postexcerpt,osec_event_meta_box_location,osec_event_meta_box_tickets,osec_eventmeta_box_organizer',
 		'advanced' => 'osec_event_meta_box_date,postimagediv',
 	];
 
