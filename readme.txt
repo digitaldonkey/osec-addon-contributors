@@ -31,6 +31,12 @@ Open Source Event Calendar brings the role **Event Contributor**: it drafts even
 * A clear default layout of the event editor (until they arrange it themselves).
 * A shorter profile page: of the "Personal Options" only the language choice stays (editor, colour scheme, shortcuts and toolbar options are hidden), and no application passwords.
 
+**Sign up and log in with an email address**
+
+* The registration form asks for the email address only. Each account gets a random username, which reveals nothing about the person; they can set the name shown on their events in their profile.
+* The login and lost-password forms ask for "Email". A username still works, for administrators as well.
+* Registration itself is switched on in Settings → General ("Anyone can register", new user default role "Event Contributor").
+
 **Private images until the event is published**
 
 * Images contributors upload for an unpublished event are not public. Only the uploader and reviewers (Editors, Authors, Administrators) can see them.
@@ -72,6 +78,7 @@ Deactivating removes the upload right of both contributor roles, the Event Publi
 
 = Known limits =
 
+* Multisite: registration runs through wp-signup.php, which still asks for a username.
 * Multisite: the Event Publisher role is created on the site where the plugin is activated. Network activation does not create it on the other sites.
 * Attachment pages: WordPress shows no attachment pages by default (since 6.4). If a site switches them back on, the page of a private image that belongs to no event shows its title and description to anyone; the image itself stays protected.
 * Images added by hand as HTML from other websites (the editor's "Text" tab) are not stopped.

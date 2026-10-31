@@ -9,6 +9,8 @@ namespace Osec\Addon\Contributors;
 
 use Osec\Addon\Contributors\Admin\AdminMenu;
 use Osec\Addon\Contributors\Admin\EditorLayout;
+use Osec\Addon\Contributors\Admin\EmailLogin;
+use Osec\Addon\Contributors\Admin\EmailRegistration;
 use Osec\Addon\Contributors\Admin\MediaDialog;
 use Osec\Addon\Contributors\Admin\OwnEvents;
 use Osec\Addon\Contributors\Admin\OwnMedia;
@@ -50,6 +52,8 @@ final class Plugin {
 		EditorLayout::register();
 		ProfilePage::register();
 		MediaDialog::register();
+		EmailLogin::register();
+		EmailRegistration::register();
 
 		Storage::register();
 		StorageCheck::register();

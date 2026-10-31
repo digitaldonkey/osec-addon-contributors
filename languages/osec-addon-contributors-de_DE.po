@@ -88,3 +88,7 @@ msgstr "Contributors Add-on: Der Ordner für private Bilder, %s, kann vom Webser
 #: src/PrivateUploads/StorageCheck.php:217
 msgid "The folder for private event images cannot be written"
 msgstr "Der Ordner für private Veranstaltungsbilder ist nicht beschreibbar"
+
+#: src/Admin/EmailLogin.php:52
+msgid "Email"
+msgstr "E-Mail"

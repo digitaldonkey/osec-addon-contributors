@@ -29,7 +29,9 @@ src/
 │   ├── Uploads.php           image types only
 │   ├── EditorLayout.php      default box order / hidden boxes (defaults, nothing stored)
 │   ├── MediaDialog.php       media dialog without gallery, playlists, insert from URL
-│   └── ProfilePage.php       own profile: "Personal Options" except language hidden (CSS), no application passwords
+│   ├── ProfilePage.php       own profile: "Personal Options" except language hidden (CSS), no application passwords
+│   ├── EmailLogin.php        wp-login.php: "Username or Email Address" → "Email" (label only, usernames still work)
+│   └── EmailRegistration.php registration: username field hidden, random login name (8 × a-z0-9, -2 … on a clash)
 └── PrivateUploads/           images of unpublished events
     ├── Storage.php           private folder, which attachments are private, deleting their files
     ├── StorageCheck.php      fail closed: test download, admin notice, Site Health
@@ -86,7 +88,7 @@ vendor/bin/phpcbf   # fix what can be fixed automatically
 English source strings, German bundled in `languages/`. After changing strings:
 
 ```bash
-wp i18n make-pot . languages/osec-addon-contributors.pot --exclude=vendor,tests
+wp i18n make-pot . languages/osec-addon-contributors.pot --exclude=vendor,tests,build
 wp i18n update-po languages/osec-addon-contributors.pot languages/
 wp i18n make-mo languages/
 ```
