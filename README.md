@@ -108,3 +108,14 @@ Pushing a version tag publishes a GitHub release (`.github/workflows/release.yml
    builds the zip (`bin/build-zip.sh`, everything except `.distignore`) and creates the release with it.
 
 Build the zip locally: `bash bin/build-zip.sh 0.2.0` → `build/osec-addon-contributors-0.2.0.zip`.
+
+### Development build
+
+Every push to `main` whose tests pass updates the pre-release **dev**
+(`.github/workflows/dev-release.yml`, started by the Testing workflow): the tag `dev` moves to the commit,
+the zip is replaced, and title and notes name the commit. It is never marked as latest release.
+
+- Download: https://github.com/digitaldonkey/osec-addon-contributors-/releases/download/dev/osec-addon-contributors-dev.zip
+- The zip's version is `<version>-dev.<short commit>`, e.g. `0.1.0-dev.2977043`, stamped into the copy in
+  the zip only. Locally: `bash bin/build-zip.sh dev 0.1.0-dev.2977043`.
+- When `main` moved on during a run, that run publishes nothing; the newer one does.

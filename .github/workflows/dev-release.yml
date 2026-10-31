@@ -1,0 +1,79 @@
+# Keeps one pre-release "dev" with the zip of the latest main commit, after its tests passed.
+#
+# 1. Starts when the Testing workflow finished successfully for a push to main of this repository
+#    (not for pull requests or forks), so the tests run once per push.
+# 2. Skips the run when main has moved on meanwhile; a newer run also cancels an older one.
+# 3. Builds the zip with the version stamped as <version>-dev.<short commit>, e.g. 0.1.0-dev.2977043
+#    (only inside the zip; WordPress sorts it below the release).
+# 4. Moves the tag "dev" to the commit, replaces the zip and updates title and notes of the
+#    pre-release "dev" (created on the first run). It is never marked as latest release.
+#
+# Download: https://github.com/<owner>/<repo>/releases/download/dev/osec-addon-contributors-dev.zip
+name: Development build
+
+on:
+  workflow_run:
+    workflows: [Testing]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dev-release
+  cancel-in-progress: true
+
+jobs:
+  dev-release:
+    name: Publish dev pre-release
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - name: Check out the tested commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Still the tip of main
+        id: tip
+        run: |
+          tip=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
+          if [ "$tip" = "$SHA" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "main is at $tip now, skipping $SHA."
+            echo "current=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build zip
+        if: steps.tip.outputs.current == 'true'
+        run: |
+          version=$(sed -nE 's/^[[:space:]]*\*[[:space:]]*Version:[[:space:]]*([^[:space:]]+).*/\1/p' osec-addon-contributors.php | head -n 1)
+          bash bin/build-zip.sh dev "$version-dev.${SHA::7}"
+
+      - name: Move tag dev
+        if: steps.tip.outputs.current == 'true'
+        run: |
+          gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/dev" -f sha="$SHA" -F force=true \
+            || gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref=refs/tags/dev -f sha="$SHA"
+
+      - name: Publish pre-release
+        if: steps.tip.outputs.current == 'true'
+        run: |
+          title="Development build (main @ ${SHA::7})"
+          notes="Latest commit on main, tests passed: https://github.com/$GITHUB_REPOSITORY/commit/$SHA
+          Built $(date -u '+%Y-%m-%d %H:%M UTC'). Not a release: may contain unfinished work."
+          zip=build/osec-addon-contributors-dev.zip
+          if gh release view dev > /dev/null 2>&1; then
+            gh release edit dev --title "$title" --notes "$notes" --prerelease --latest=false
+            gh release upload dev "$zip" --clobber
+          else
+            gh release create dev "$zip" --verify-tag --prerelease --latest=false --title "$title" --notes "$notes"
+          fi
