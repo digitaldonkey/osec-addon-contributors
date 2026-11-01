@@ -242,6 +242,30 @@ class Test_Review_Fixes extends Osec_Addon_Contributors_TestCase {
 	}
 
 	/**
+	 * Published files get the permissions of a normal upload, not the private folder's.
+	 *
+	 * Hosts like Plesk keep the folder above the web root at 0710; the private folder inherits it, and
+	 * WordPress gives uploads there 0600, which the web server cannot read once the files are public.
+	 */
+	public function test_published_files_get_upload_permissions() {
+		$me = $this->user( Roles::ASSISTANT );
+		wp_mkdir_p( $this->root );
+		Storage::filesystem()->chmod( $this->root, 0710 );
+		$event = $this->event( $me, 'pending' );
+		$image = $this->upload( $me, $event );
+		$this->assertSame( 0600, fileperms( get_attached_file( $image ) ) & 0777, 'precondition: private file 0600' );
+
+		wp_publish_post( $event );
+
+		$this->assertFalse( Storage::is_private( $image ) );
+		$expected = fileperms( dirname( get_attached_file( $image ) ) ) & 0666;
+		foreach ( Storage::file_names( $image ) as $name ) {
+			$file = dirname( get_attached_file( $image ) ) . '/' . $name;
+			$this->assertSame( $expected, fileperms( $file ) & 0777, $name );
+		}
+	}
+
+	/**
 	 * Uploads a test file as a user the way WordPress does it, with sizes.
 	 *
 	 * @param int    $user_id   Uploading user.

@@ -141,6 +141,12 @@ final class Publisher {
 			}
 			$moved[] = $name;
 		}
+		// The files keep the private folder's permissions (0600 when it sits below a 0710 host folder, as on
+		// Plesk). Give them what WordPress gives an upload in the target folder (_wp_handle_upload()).
+		$perms = fileperms( $target['path'] ) & 0666;
+		foreach ( $moved as $name ) {
+			$fs->chmod( $target['path'] . '/' . $name, $perms );
+		}
 
 		$main = wp_basename( $main_file );
 		$meta = wp_get_attachment_metadata( $attachment_id );
