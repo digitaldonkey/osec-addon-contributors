@@ -76,6 +76,13 @@ The URL does not help: every request is checked against the logged-in user. Visi
 
 Deactivating removes the upload right of both contributor roles, the Event Publisher role stays. Deleting turns Event Publishers into Event Contributors and removes the role. Private images stay where they are, without the plugin nobody can open them. To keep them, publish their events before you delete the plugin, or move the files yourself.
 
+= Images published with version 0.1.0 do not show =
+
+On some hosts (for example Plesk) the folder above the web root has restrictive permissions, and 0.1.0 moved published images with the private files' permissions (0600), which the web server cannot read. Version 0.1.1 sets the right permissions on publish, but does not change files published before. Fix them on the server, after checking the list:
+
+`find wp-content/uploads -type f -perm 0600 -print`
+`find wp-content/uploads -type f -perm 0600 -exec chmod 0644 {} +`
+
 = Known limits =
 
 * Multisite: registration runs through wp-signup.php, which still asks for a username.

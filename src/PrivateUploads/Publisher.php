@@ -141,12 +141,7 @@ final class Publisher {
 			}
 			$moved[] = $name;
 		}
-		// The files keep the private folder's permissions (0600 when it sits below a 0710 host folder, as on
-		// Plesk). Give them what WordPress gives an upload in the target folder (_wp_handle_upload()).
-		$perms = fileperms( $target['path'] ) & 0666;
-		foreach ( $moved as $name ) {
-			$fs->chmod( $target['path'] . '/' . $name, $perms );
-		}
+		self::set_mode( $target['path'], $moved, self::upload_mode( $target['path'] ), $attachment_id );
 
 		$main = wp_basename( $main_file );
 		$meta = wp_get_attachment_metadata( $attachment_id );
@@ -213,6 +208,62 @@ final class Publisher {
 		if ( $updated !== $content ) {
 			$wpdb->update( $wpdb->posts, [ 'post_content' => $updated ], [ 'ID' => $post_id ] ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			clean_post_cache( $post_id );
+		}
+	}
+
+	/**
+	 * The mode WordPress gives an upload in a folder (_wp_handle_upload()): the folder's mode & 0666.
+	 *
+	 * @param string $dir Folder.
+	 *
+	 * @return int 0 when the folder's mode cannot be read.
+	 */
+	public static function upload_mode( string $dir ): int {
+		$mode = @fileperms( $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- false is handled.
+		return false === $mode ? 0 : $mode & 0666;
+	}
+
+	/**
+	 * Gives moved files the mode of a normal upload. Otherwise they keep the private folder's mode:
+	 * 0600 when it sits below a 0710 host folder (Plesk), which the web server cannot read.
+	 *
+	 * @param string   $dir           Folder of the files.
+	 * @param string[] $names         File names.
+	 * @param int      $mode          Mode to set (upload_mode()).
+	 * @param int      $attachment_id Attachment ID, for the log.
+	 *
+	 * @return bool False when a file kept its mode (logged).
+	 */
+	public static function set_mode( string $dir, array $names, int $mode, int $attachment_id ): bool {
+		// Core's chmod() takes 0 as "no mode" and falls back to FS_CHMOD_FILE, undefined outside WP_Filesystem().
+		if ( 0 === $mode ) {
+			self::log_unreadable( $attachment_id, 'the mode of ' . $dir . ' cannot be read' );
+			return false;
+		}
+		$fs = Storage::filesystem();
+		$ok = true;
+		foreach ( $names as $name ) {
+			$file = $dir . '/' . $name;
+			if ( ! $fs->is_file( $file ) || ! $fs->chmod( $file, $mode ) ) {
+				self::log_unreadable( $attachment_id, 'could not set the mode of ' . $name );
+				$ok = false;
+			}
+		}
+		return $ok;
+	}
+
+	/**
+	 * Logs a public image whose files may be unreadable for the web server (only with WP_DEBUG_LOG).
+	 *
+	 * @param int    $attachment_id Attachment ID.
+	 * @param string $reason        What failed.
+	 *
+	 * @return void
+	 */
+	private static function log_unreadable( int $attachment_id, string $reason ): void {
+		if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- only with WP_DEBUG_LOG.
+			error_log( sprintf( 'Contributors Add-on: image %d is public, but its files keep the private permissions: %s.', $attachment_id, $reason ) );
 		}
 	}
 

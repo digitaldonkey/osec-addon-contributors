@@ -10,6 +10,7 @@
 use Osec\Addon\Contributors\Admin\OwnMedia;
 use Osec\Addon\Contributors\Admin\Roles;
 use Osec\Addon\Contributors\PrivateUploads\Endpoint;
+use Osec\Addon\Contributors\PrivateUploads\Publisher;
 use Osec\Addon\Contributors\PrivateUploads\Storage;
 use Osec\Addon\Contributors\PrivateUploads\StorageCheck;
 use Osec\Addon\Contributors\PrivateUploads\UploadRouter;
@@ -263,6 +264,40 @@ class Test_Review_Fixes extends Osec_Addon_Contributors_TestCase {
 			$file = dirname( get_attached_file( $image ) ) . '/' . $name;
 			$this->assertSame( $expected, fileperms( $file ) & 0777, $name );
 		}
+	}
+
+	/**
+	 * A folder whose mode cannot be read gives mode 0.
+	 */
+	public function test_upload_mode_of_missing_folder_is_zero() {
+		$this->assertSame( 0, Publisher::upload_mode( $this->root . '/not-there' ) );
+	}
+
+	/**
+	 * Mode 0 leaves the files alone: core's chmod() would take 0 as "no mode" and use FS_CHMOD_FILE,
+	 * which is undefined while an event is published (fatal error) or a wrong mode.
+	 */
+	public function test_mode_zero_changes_nothing() {
+		wp_mkdir_p( $this->root );
+		$file = $this->root . '/a.jpg';
+		Storage::filesystem()->put_contents( $file, 'x', 0600 );
+
+		$this->assertFalse( Publisher::set_mode( $this->root, [ 'a.jpg' ], 0, 1 ) );
+		clearstatcache();
+		$this->assertSame( 0600, fileperms( $file ) & 0777 );
+	}
+
+	/**
+	 * A file that cannot be changed is reported, the others still get the mode.
+	 */
+	public function test_failed_chmod_is_reported() {
+		wp_mkdir_p( $this->root );
+		$file = $this->root . '/a.jpg';
+		Storage::filesystem()->put_contents( $file, 'x', 0600 );
+
+		$this->assertFalse( Publisher::set_mode( $this->root, [ 'gone.jpg', 'a.jpg' ], 0644, 1 ) );
+		clearstatcache();
+		$this->assertSame( 0644, fileperms( $file ) & 0777 );
 	}
 
 	/**
