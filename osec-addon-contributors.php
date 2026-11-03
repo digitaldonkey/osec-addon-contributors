@@ -3,7 +3,7 @@
  * Plugin Name:       Contributors Add-on for Open Source Event Calendar
  * Plugin URI:        https://github.com/digitaldonkey/osec-addon-contributors
  * Description:       Lets registered users draft events with images for review: own events and media only in the admin, private images until the event is published, and an Event Publisher role.
- * Version:           0.1.1
+ * Version:           0.1.2
  * Requires at least: 7.1
  * Requires PHP:      8.4
  * Requires Plugins:  open-source-event-calendar
@@ -23,7 +23,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-const OSEC_ADDON_CONTRIBUTORS_VERSION = '0.1.1';
+const OSEC_ADDON_CONTRIBUTORS_VERSION = '0.1.2';
 const OSEC_ADDON_CONTRIBUTORS_FILE    = __FILE__;
 
 spl_autoload_register(

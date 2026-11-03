@@ -4,7 +4,7 @@ Tags: events, calendar, contributors, user submitted, media privacy
 Requires at least: 7.1
 Tested up to: 7.1
 Requires PHP: 8.4
-Stable tag: 0.1.1
+Stable tag: 0.1.2
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -95,6 +95,9 @@ On some hosts (for example Plesk) the folder above the web root has restrictive 
 Images in `wp-content/uploads/private_drafts/` are not moved. Clean them up by hand.
 
 == Changelog ==
+
+= 0.1.2 =
+* Fix: publishing an event could end in a fatal error on some hosts; files left unreadable after publishing are now logged.
 
 = 0.1.1 =
 * Fix: images of a published event could not be shown on hosts where the private folder had restrictive permissions (e.g. Plesk).
